@@ -1,60 +1,115 @@
-import { ClassicComponent, Component, FC, createElement } from "react";
-
-
-type AConstructorTypeOf<T> = new (...args: any[]) => T;
-
-function Render<C extends FC, T extends AConstructorTypeOf<T>>(Comp: C) {
-  return function (Klass: T) {
-    // console.log(Klass, Comp);
-    Klass.prototype.render = function () {
-      let props = Object.assign({}, this.state, this.props);
-      // console.log(Klass.prototype)
-
-      const instanceOnlyMethods = Object.getOwnPropertyNames(Klass.prototype)
-        .filter(prop => prop != "constructor" && prop != "render");
-
-      for (const item of instanceOnlyMethods) {
-        props[item] = Klass.prototype[item].bind(this);
-      }
-      // console.log(props)
-      return createElement(Comp, props);
-    }
-
-
-    return new Proxy(Klass, {
-      get(target, prop) {
-        return target[prop as keyof typeof prop];
-      },
-    })
-  };
-}
-
-function ComponentMarkup(props: { count: number, inc: () => void }) {
-  // console.log(props);
-  return (
-    <div className="App">
-      <button onClick={props.inc}>+</button>
-      <h1>{props.count}</h1>
-    </div>
-  );
-}
-
-@Render(ComponentMarkup, { inject: ['props'] })
-class Test extends Component<{ count?: number }> {
-  state = { count: 1 }
-
-  inc() {
-    console.log(this)
-    this.setState({ count: this.state.count + 1 });
-  }
-}
+import { ClassicComponent, Component, FC, PureComponent, createElement, memo, useCallback, useMemo, useState } from "react";
 
 export default function App() {
   return (
     <div className="App">
       <h1>Hello CodeSandbox</h1>
       <h2>Start editing to see some magic happen!</h2>
-      <Test  />
+      <MyComponent count={2} />
     </div>
   );
+}
+
+
+function Render(Component: any) {
+  return function(klass) {
+    return function (props) {
+      // const instance = new klass(props);
+      // const propsProxy = new Proxy(instance, {
+      //   get(target, prop) {
+      //     setTimeout(() => update(), 0)
+      //     return target[prop]?.bind?.(target) ?? target[prop];
+      //   },
+      //   ownKeys(target) {
+      //     // Reflect.ownKeys(target)
+      //     // console.log(target)
+      //     return Reflect.ownKeys(klass.prototype).filter(item => item != "constructor");
+      //   },
+      // });
+      const [instance] = useState(() => new klass(props));
+      const [propsProxy] = useState(() => new Proxy(instance, {
+        get(target, prop) {
+          setTimeout(() => update(), 0)
+          return target[prop]?.bind?.(target) ?? target[prop];
+        },
+        ownKeys(target) {
+          // Reflect.ownKeys(target)
+          // console.log(target)
+          return Reflect.ownKeys(klass.prototype).filter(item => item != "constructor");
+        },
+      }));
+      const [count, setCount] = useState(1);
+      const update = useCallback(() => setCount(s => s + 1), [count]);
+
+      console.log(propsProxy)
+
+      return useMemo(() => Component(propsProxy), [instance])
+    };
+  }
+}
+
+
+function ComponentMarkup(props: any) {
+  console.log(props)
+  return (
+    <>
+      <button onClick={() => props.inc()}>+</button>
+      <div>{props.count}</div>
+    </>
+  )
+}
+
+
+// function Render(ComponentRender: any) {
+//   return function(klass) {
+//     return class extends Component {
+//       state = { count: 1 }
+
+//       constructor(props) {
+//         super(props);
+//         this.instance = new klass(props);
+//         const update = () => this.setState(s => ({ count: s.count + 1 }));
+//         this.propsProxy = new Proxy(this.instance, {
+//           get(target, prop) {
+//             update()
+//             return target[prop]?.bind?.(target) ?? target[prop];
+//           },
+
+//           ownKeys(target) {
+//             // Reflect.ownKeys(target)
+//             // console.log(target)
+//             return Reflect.ownKeys(klass.prototype).filter(item => item != "constructor");
+//           },
+//         });
+//       }
+
+//       render() {
+//         return  ComponentRender(this.propsProxy)
+//       }
+//     };
+//   }
+// }
+
+function arePropsEqual(oldProps, newProps) {
+  console.log(oldProps, newProps)
+  return true;
+}
+
+@Render(ComponentMarkup)
+class MyComponent {
+  #props = {};
+
+  constructor(props) {
+    console.log(props, 'props')
+    this.#props = {...props};
+  }
+
+  inc() {
+    console.log(this.#props)
+    this.#props.count++;
+  }
+
+  get count() {
+    return this.#props.count;
+  }
 }
