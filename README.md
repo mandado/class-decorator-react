@@ -1,6 +1,6 @@
 # Class decorator react
 
-This repository is a experimental proof of concept to separate logic from directly markup using decorators. 
+## This repository is a experimental proof of concept to separate logic from directly markup using decorators. 
 
 ## Expanding the ESLint configuration
 
