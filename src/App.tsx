@@ -3,19 +3,12 @@ import { ClassicComponent, Component, FC, createElement } from "react";
 
 type AConstructorTypeOf<T> = new (...args: any[]) => T;
 
-function Render<C extends FC, T extends AConstructorTypeOf<T>>(Comp: C, options?: {
-  inject?: ['state', 'props']
-}) {
+function Render<C extends FC, T extends AConstructorTypeOf<T>>(Comp: C) {
   return function (Klass: T) {
     // console.log(Klass, Comp);
     Klass.prototype.render = function () {
-      let props = Object.assign({}, this.state);
-
-      if (options?.inject?.includes('props')) {
-        Object.assign(props, this.props);
-      }
-
-      console.log(Klass.prototype)
+      let props = Object.assign({}, this.state, this.props);
+      // console.log(Klass.prototype)
 
       const instanceOnlyMethods = Object.getOwnPropertyNames(Klass.prototype)
         .filter(prop => prop != "constructor" && prop != "render");
@@ -23,7 +16,7 @@ function Render<C extends FC, T extends AConstructorTypeOf<T>>(Comp: C, options?
       for (const item of instanceOnlyMethods) {
         props[item] = Klass.prototype[item].bind(this);
       }
-      console.log(props)
+      // console.log(props)
       return createElement(Comp, props);
     }
 
@@ -46,8 +39,8 @@ function ComponentMarkup(props: { count: number, inc: () => void }) {
   );
 }
 
-@Render(ComponentMarkup)
-class Test extends Component<{ count: 1 }> {
+@Render(ComponentMarkup, { inject: ['props'] })
+class Test extends Component<{ count?: number }> {
   state = { count: 1 }
 
   inc() {
@@ -61,7 +54,7 @@ export default function App() {
     <div className="App">
       <h1>Hello CodeSandbox</h1>
       <h2>Start editing to see some magic happen!</h2>
-      <Test />
+      <Test  />
     </div>
   );
 }
